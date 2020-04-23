@@ -47,3 +47,6 @@ class Detection(object):
         ret[:2] += ret[2:] / 2
         ret[2] /= ret[3]
         return ret
+
+    def __repr__(self):
+        return f"Detection(tlwh={self.tlwh}, confidence={self.confidence})"

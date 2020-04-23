@@ -164,3 +164,10 @@ class Track:
     def is_deleted(self):
         """Returns True if this track is dead and should be deleted."""
         return self.state == TrackState.Deleted
+
+    def __repr__(self):
+        return (
+            f"Track(track_id={self.track_id}, num_features={len(self.features)}, "
+            f"state={self.state}, age={self.age}, hits={self.hits}), "
+            f"tsu={self.time_since_update}, tlwh={self.to_tlwh()}"
+        )
