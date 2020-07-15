@@ -1,6 +1,7 @@
 # vim: expandtab:ts=4:sw=4
 import logging
 import numpy as np
+from sklearn.metrics.pairwise import euclidean_distances
 
 
 logger = logging.getLogger(__name__)
@@ -79,6 +80,30 @@ def _nn_euclidean_distance(x, y):
     return np.maximum(0.0, distances.min(axis=0))
 
 
+def _nn_angular_distance(x, y):
+    """ Helper function for nearest neighbor distance metric (angular).
+
+    Parameters
+    ----------
+    x : ndarray
+        A matrix of N row-vectors (sample points).
+    y : ndarray
+        A matrix of M row-vectors (query points).
+
+    Returns
+    -------
+    ndarray
+        A vector of length M that contains for each entry in `y` the
+        smallest Euclidean distance to a sample in `x`.
+
+    """
+    x = np.asarray(x) / np.linalg.norm(x, axis=1, keepdims=True)
+    y = np.asarray(y) / np.linalg.norm(y, axis=1, keepdims=True)
+    distances = euclidean_distances(x, y)
+    logger.debug(f"[_nn_angular_distance] distances: {distances}")
+    return np.average(distances, axis=0)
+
+
 def _nn_cosine_distance(x, y):
     """ Helper function for nearest neighbor distance metric (cosine).
 
@@ -109,7 +134,7 @@ class NearestNeighborDistanceMetric(object):
     Parameters
     ----------
     metric : str
-        Either "euclidean" or "cosine".
+        Either "euclidean" or "angular" or "cosine".
     matching_threshold: float
         The matching threshold. Samples with larger distance are considered an
         invalid match.
@@ -130,6 +155,8 @@ class NearestNeighborDistanceMetric(object):
 
         if metric == "euclidean":
             self._metric = _nn_euclidean_distance
+        elif metric == "angular":
+            self._metric = _nn_angular_distance
         elif metric == "cosine":
             self._metric = _nn_cosine_distance
         else:
