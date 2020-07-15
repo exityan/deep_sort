@@ -1,9 +1,12 @@
 # vim: expandtab:ts=4:sw=4
 from __future__ import absolute_import
+import logging
 import numpy as np
 from sklearn.utils.linear_assignment_ import linear_assignment
 from . import kalman_filter
 
+
+logger = logging.getLogger(__name__)
 
 INFTY_COST = 1e+5
 
@@ -50,11 +53,18 @@ def min_cost_matching(
         detection_indices = np.arange(len(detections))
 
     if len(detection_indices) == 0 or len(track_indices) == 0:
+        logger.debug(f"[min_cost_matching] nothing to match")
         return [], track_indices, detection_indices  # Nothing to match.
+
+    logger.debug(f"[min_cost_matching] tracks: {tracks}")
+    logger.debug(f"[min_cost_matching] detections: {detections}")
+    logger.debug(f"[min_cost_matching] track_indices: {track_indices}")
+    logger.debug(f"[min_cost_matching] detection_indices: {detection_indices}")
 
     cost_matrix = distance_metric(
         tracks, detections, track_indices, detection_indices)
     cost_matrix[cost_matrix > max_distance] = max_distance + 1e-5
+    logger.debug(f"[min_cost_matching] cost_matrix: {cost_matrix}")
     indices = linear_assignment(cost_matrix)
 
     matches, unmatched_tracks, unmatched_detections = [], [], []
@@ -72,6 +82,11 @@ def min_cost_matching(
             unmatched_detections.append(detection_idx)
         else:
             matches.append((track_idx, detection_idx))
+
+    logger.debug(f"[min_cost_matching] matches: {matches}")
+    logger.debug(f"[min_cost_matching] unmatched_tracks: {unmatched_tracks}")
+    logger.debug(f"[min_cost_matching] unmatched_detections: {unmatched_detections}")
+
     return matches, unmatched_tracks, unmatched_detections
 
 
@@ -122,7 +137,9 @@ def matching_cascade(
     unmatched_detections = detection_indices
     matches = []
     for level in range(cascade_depth):
+        logger.debug(f"[matching_cascade] level: {level}")
         if len(unmatched_detections) == 0:  # No detections left
+            logger.debug(f"[matching_cascade] no detections left")
             break
 
         track_indices_l = [
@@ -180,11 +197,13 @@ def gate_cost_matrix(
     """
     gating_dim = 2 if only_position else 5
     gating_threshold = kalman_filter.chi2inv95[gating_dim]
+    logger.debug(f"[gate_cost_matrix] gating_threshold: {gating_threshold}")
     measurements = np.asarray(
         [detections[i].to_xyah() for i in detection_indices])
     for row, track_idx in enumerate(track_indices):
         track = tracks[track_idx]
         gating_distance = kf.gating_distance(
             track.mean, track.covariance, measurements, only_position)
+        logger.debug(f"[gate_cost_matrix] gating_distance: {gating_distance}")
         cost_matrix[row, gating_distance > gating_threshold] = gated_cost
     return cost_matrix

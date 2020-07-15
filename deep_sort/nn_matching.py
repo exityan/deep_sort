@@ -1,5 +1,9 @@
 # vim: expandtab:ts=4:sw=4
+import logging
 import numpy as np
+
+
+logger = logging.getLogger(__name__)
 
 
 def _pdist(a, b):
@@ -93,6 +97,7 @@ def _nn_cosine_distance(x, y):
 
     """
     distances = _cosine_distance(x, y)
+    logger.debug(f"[_nn_cosine_distance] distances: {distances}")
     return distances.min(axis=0)
 
 

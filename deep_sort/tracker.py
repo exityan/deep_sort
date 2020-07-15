@@ -1,10 +1,14 @@
 # vim: expandtab:ts=4:sw=4
 from __future__ import absolute_import
+import logging
 import numpy as np
 from . import kalman_filter
 from . import linear_assignment
 from . import iou_matching
 from .track import Track
+
+
+logger = logging.getLogger(__name__)
 
 
 class Tracker:
@@ -106,10 +110,13 @@ class Tracker:
         def gated_metric(tracks, dets, track_indices, detection_indices):
             features = np.array([dets[i].feature for i in detection_indices])
             targets = np.array([tracks[i].track_id for i in track_indices])
+            logger.debug(f"[_match] targets: {targets}")
             cost_matrix = self.metric.distance(features, targets)
+            logger.debug(f"[_match] cost_matrix: {cost_matrix}")
             cost_matrix = linear_assignment.gate_cost_matrix(
                 self.kf, cost_matrix, tracks, dets, track_indices,
                 detection_indices)
+            logger.debug(f"[_match] gate cost_matrix: {cost_matrix}")
 
             return cost_matrix
 
@@ -119,26 +126,42 @@ class Tracker:
         unconfirmed_tracks = [
             i for i, t in enumerate(self.tracks) if not t.is_confirmed()]
 
+        logger.debug(f"[_match] Associate confirmed tracks using appearance features.")
+
         # Associate confirmed tracks using appearance features.
         matches_a, unmatched_tracks_a, unmatched_detections = \
             linear_assignment.matching_cascade(
                 gated_metric, self.metric.matching_threshold, self.max_age,
                 self.tracks, detections, confirmed_tracks)
 
+        logger.debug(f"[_match] Associate remaining tracks together with unconfirmed tracks using IOU")
+
         # Associate remaining tracks together with unconfirmed tracks using IOU.
         iou_track_candidates = unconfirmed_tracks + [
             k for k in unmatched_tracks_a if
             self.tracks[k].time_since_update == 1]
+        logger.debug(f"[_match] iou_track_candidates: {iou_track_candidates}")
+
         unmatched_tracks_a = [
             k for k in unmatched_tracks_a if
             self.tracks[k].time_since_update != 1]
+        logger.debug(f"[_match] unmatched_tracks_a: {unmatched_tracks_a}")
         matches_b, unmatched_tracks_b, unmatched_detections = \
             linear_assignment.min_cost_matching(
                 iou_matching.iou_cost, self.max_iou_distance, self.tracks,
                 detections, iou_track_candidates, unmatched_detections)
 
+        logger.debug(f"[_match] matches_b: {matches_b}")
+        logger.debug(f"[_match] unmatched_tracks_b: {unmatched_tracks_b}")
+        logger.debug(f"[_match] unmatched_detections: {unmatched_detections}")
+
         matches = matches_a + matches_b
         unmatched_tracks = list(set(unmatched_tracks_a + unmatched_tracks_b))
+
+        logger.debug(f"[_match] matches: {matches}")
+        logger.debug(f"[_match] unmatched_tracks: {unmatched_tracks}")
+        logger.debug(f"[_match] unmatched_detections: {unmatched_detections}")
+
         return matches, unmatched_tracks, unmatched_detections
 
     def _initiate_track(self, detection):
