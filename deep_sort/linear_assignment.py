@@ -195,7 +195,7 @@ def gate_cost_matrix(
         Returns the modified cost matrix.
 
     """
-    gating_dim = 2 if only_position else 5
+    gating_dim = 2 if only_position else 4
     gating_threshold = kalman_filter.chi2inv95[gating_dim]
     logger.debug(f"[gate_cost_matrix] gating_threshold: {gating_threshold}")
     measurements = np.asarray(
